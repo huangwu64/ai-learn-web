@@ -1,0 +1,24 @@
+# Maven
+target/
+
+# IDE
+.idea/
+*.iml
+
+# 日志文件
+logs/
+
+# Web (frontend)
+web/node_modules/
+web/dist/
+
+# Claude AI
+.claude/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# 敏感配置（API Key 等）
+application-*.yml
+!application-dev.yml.example
