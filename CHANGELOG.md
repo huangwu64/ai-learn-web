@@ -4,6 +4,71 @@
 
 ---
 
+## V3.2 (2026-08-02)
+
+### 🎯 版本目标
+
+1. 管理员用户管理（增删改查、重置密码）
+2. 头像文件上传 + 资料变更管理员审核
+3. 综合入口（根 URL）+ 用户端移至 /chat
+4. 云服务器配置预留
+
+### ✨ 新增功能
+
+#### 用户管理（管理员）
+
+- **用户列表 / 新增 / 编辑 / 删除 / 重置密码**（`/api/v1/admin/users**`）
+- 删除用户级联清理会话/消息/Refresh Token；匿名用户（ID=1）禁止删除
+- 管理员修改资料直接生效，无需审核
+
+#### 头像上传与审核
+
+- 新增 `uploads/avatars/` 上传目录，静态映射 `/uploads/**`，Vite 代理 `/uploads`
+- `POST /api/v1/upload/avatar`（multipart）：类型/大小校验，UUID 文件名
+- 头像/昵称/用户名变更走审核：新增 `profile_change_request` 表
+  - 用户提交 → 待审核 → 管理员通过 → 同步到用户资料
+  - 拒绝可填备注；用户端展示审核状态
+- 管理员「资料审核」页签：通过 / 拒绝
+
+#### 综合入口与 URL 调整
+
+- 根 URL `/` → 综合入口 `PortalView.vue`（后端状态检测 + 用户端/管理后台入口卡片）
+- 用户端对话移至 `/chat`，登录/守卫/导航联动调整
+- 一键启动脚本：`start-dev.bat` / `start-dev.sh`
+
+#### 云配置预留
+
+- 新增 `config/README.md` 预留说明 + `application.yml` 注释段（V4 填写，本版本无默认配置）
+
+### 🔧 技术变更
+
+- **新增模块**：`module/review/`（审核实体/Mapper/Service + DTO）
+- **新增模块**：`module/admin/`（UserAdminService/UserAdminController）
+- **新增**：`UploadController`、`WebMvcConfig`（静态资源映射）
+- **数据库迁移**：`V3_2__user_review_and_avatar.sql`（`profile_change_request` 表）
+
+### 📁 变更文件
+
+| 文件 | 操作 |
+|------|------|
+| `module/review/`（entity/mapper/service/dto） | 新增 |
+| `module/admin/UserAdminService.java` / `UserAdminController.java` + dto | 新增 |
+| `module/user/UploadController.java` / `UserController.java` | 新增 / 修改 |
+| `config/WebMvcConfig.java` | 新增 |
+| `resources/db/migration/V3_2__user_review_and_avatar.sql` | 新增 |
+| `resources/application.yml` / `application-dev.yml` | 修改（云配置注释段 / multipart） |
+| `web/src/views/PortalView.vue` | 新增：综合入口 |
+| `web/src/views/admin/UserManagePanel.vue` / `ReviewPanel.vue` | 新增 |
+| `web/src/views/admin/AdminPortalView.vue` | 修改：Tab 化管理后台 |
+| `web/src/views/ProfileView.vue` | 修改：头像上传 + 审核状态 |
+| `web/src/router/index.ts` / `App.vue` / `AppLayout.vue` / `LoginView.vue` | 修改：URL 调整 |
+| `web/vite.config.ts` | 修改：/uploads 代理 |
+| `web/src/api/admin.ts` / `auth.ts` / `types/admin.ts` | 修改 |
+| `start-dev.bat` / `start-dev.sh` | 新增 |
+| `config/README.md` | 新增 |
+
+---
+
 ## V3.1 (2026-08-02)
 
 ### 🐛 Bug 修复

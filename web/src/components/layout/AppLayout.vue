@@ -9,7 +9,7 @@
           @select="handleNavSelect"
           class="nav-menu"
         >
-          <el-menu-item index="/">对话</el-menu-item>
+          <el-menu-item index="/chat">对话</el-menu-item>
           <!-- [V3 移除] 训练模块已合并入管理员初始提示词，用户端不再展示 -->
           <!-- <el-menu-item index="/training">训练</el-menu-item> -->
           <!-- [V3 启用] 知识库模块相关代码，V2 版本暂时注释 -->
@@ -41,10 +41,8 @@ const userStore = useUserStore()
 
 const activeNav = computed(() => {
   const path = route.path
-  if (path.startsWith('/training')) return '/training'
-  if (path.startsWith('/knowledge')) return '/knowledge'
   if (path.startsWith('/profile')) return '/profile'
-  return '/'
+  return '/chat'
 })
 
 function handleNavSelect(index: string) {

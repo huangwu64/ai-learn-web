@@ -87,7 +87,7 @@ async function handleLogin() {
   try {
     await userStore.loginAction(form.username, form.password)
     ElMessage.success('登录成功')
-    const redirect = (route.query.redirect as string) || '/'
+    const redirect = (route.query.redirect as string) || '/chat'
     router.push(redirect)
   } catch (err: any) {
     ElMessage.error(err?.response?.data?.message || err?.message || '登录失败')

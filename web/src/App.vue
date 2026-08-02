@@ -13,10 +13,11 @@ import { getAdminEntryPath } from '@/utils/adminEntry'
 
 const route = useRoute()
 
-/** 独立页面（登录/注册/管理员门户）不套用户布局 */
+/** 独立页面（综合入口/登录/注册/管理员门户）不套用户布局 */
 const isStandalonePage = computed(() => {
   const path = route.path
   return (
+    path === '/' ||
     path === '/login' ||
     path === '/register' ||
     path === getAdminEntryPath() ||

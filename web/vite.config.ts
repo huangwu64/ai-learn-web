@@ -24,6 +24,11 @@ export default defineConfig({
         target: 'http://localhost:8080',
         changeOrigin: true,
       },
+      '/uploads': {
+        // V3.2：头像等上传文件代理到后端
+        target: 'http://localhost:8080',
+        changeOrigin: true,
+      },
     },
   },
 })

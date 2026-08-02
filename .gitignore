@@ -23,3 +23,7 @@ Thumbs.db
 # 敏感配置（API Key 等）
 application-*.yml
 !application-dev.yml.example
+
+# 上传目录（保留目录结构，忽略实际上传文件）
+uploads/avatars/*
+!uploads/avatars/.gitkeep

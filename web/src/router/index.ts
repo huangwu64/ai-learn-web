@@ -18,6 +18,12 @@ const router = createRouter({
     },
     {
       path: '/',
+      name: 'portal',
+      component: () => import('@/views/PortalView.vue'),
+      meta: { standalone: true },
+    },
+    {
+      path: '/chat',
       name: 'chat',
       component: () => import('@/views/ChatView.vue'),
       meta: { requiresAuth: true },
@@ -55,9 +61,9 @@ router.beforeEach((to, from, next) => {
     return
   }
 
-  // 已登录用户访问登录/注册页 → 重定向到首页
+  // 已登录用户访问登录/注册页 → 重定向到用户端对话
   if (to.meta.noAuth && isAuthenticated) {
-    next({ path: '/' })
+    next({ path: '/chat' })
     return
   }
 

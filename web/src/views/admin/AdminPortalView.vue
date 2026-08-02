@@ -50,16 +50,18 @@
       </div>
     </div>
 
-    <!-- 已登录 → AI 配置 -->
+    <!-- 已登录 → 管理后台 -->
     <div v-else class="admin-config">
       <div class="config-header">
-        <h2 class="config-title">AI 模型与接口配置</h2>
+        <h2 class="config-title">系统管理后台</h2>
         <div class="config-header-actions">
-          <el-button text type="info" :icon="Back" @click="$router.push('/')">返回用户端</el-button>
+          <el-button text type="info" :icon="Back" @click="$router.push('/chat')">返回用户端</el-button>
           <el-button text type="danger" :icon="SwitchButton" @click="handleLogout">退出管理</el-button>
         </div>
       </div>
 
+      <el-tabs v-model="activeTab" class="admin-tabs">
+        <el-tab-pane label="AI 配置" name="ai">
       <el-form
         ref="configFormRef"
         :model="configForm"
@@ -152,6 +154,14 @@
           最近更新：{{ config.updatedAt }}
         </div>
       </el-form>
+        </el-tab-pane>
+        <el-tab-pane label="用户管理" name="users">
+          <UserManagePanel />
+        </el-tab-pane>
+        <el-tab-pane label="资料审核" name="reviews">
+          <ReviewPanel />
+        </el-tab-pane>
+      </el-tabs>
     </div>
   </div>
 </template>
@@ -164,11 +174,14 @@ import { useRouter } from 'vue-router'
 import { isAdminLoggedIn, setAdminToken, clearAdminToken } from '@/utils/adminAuth'
 import { adminLogin, adminLogout, getAiConfig, updateAiConfig, testAiConfig, listAiModels } from '@/api/admin'
 import type { AiConfig } from '@/types/admin'
+import UserManagePanel from './UserManagePanel.vue'
+import ReviewPanel from './ReviewPanel.vue'
 
 const router = useRouter()
 
 const loginFormRef = ref()
 const configFormRef = ref()
+const activeTab = ref('ai')
 const loggingIn = ref(false)
 const saving = ref(false)
 const testing = ref(false)

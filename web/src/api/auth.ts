@@ -6,6 +6,7 @@ import type {
   RegisterRequest,
   TokenRefreshResponse,
 } from '@/types/user'
+import type { ProfileChangeRequest, ProfileChangeRequestSubmit } from '@/types/admin'
 
 /** 用户登录 */
 export function login(data: LoginRequest) {
@@ -40,4 +41,25 @@ export function updateUser(data: { nickname?: string; avatarUrl?: string }) {
 /** 修改密码 */
 export function changePassword(data: { oldPassword: string; newPassword: string }) {
   return request.patch<Result<null>>('/users/me/password', data)
+}
+
+/** 上传头像（V3.2：上传后进入管理员审核） */
+export function uploadAvatar(file: File) {
+  const form = new FormData()
+  form.append('file', file)
+  return request.post<Result<{ requestId: number; url: string; status: string }>>(
+    '/upload/avatar',
+    form,
+    { headers: { 'Content-Type': 'multipart/form-data' } }
+  )
+}
+
+/** 提交资料变更审核（V3.2：昵称/用户名等） */
+export function submitProfileChange(data: ProfileChangeRequestSubmit) {
+  return request.post<Result<ProfileChangeRequest>>('/users/me/profile-request', data)
+}
+
+/** 查看我的资料变更审核记录（V3.2） */
+export function listMyProfileChanges() {
+  return request.get<Result<ProfileChangeRequest[]>>('/users/me/profile-requests')
 }
