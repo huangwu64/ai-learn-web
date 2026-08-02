@@ -1,5 +1,5 @@
 <template>
-  <div v-if="isAuthPage" class="app-auth">
+  <div v-if="isStandalonePage" class="app-auth">
     <router-view />
   </div>
   <AppLayout v-else />
@@ -9,11 +9,19 @@
 import { computed } from 'vue'
 import { useRoute } from 'vue-router'
 import AppLayout from '@/components/layout/AppLayout.vue'
+import { getAdminEntryPath } from '@/utils/adminEntry'
 
 const route = useRoute()
 
-const isAuthPage = computed(() => {
-  return route.path === '/login' || route.path === '/register'
+/** 独立页面（登录/注册/管理员门户）不套用户布局 */
+const isStandalonePage = computed(() => {
+  const path = route.path
+  return (
+    path === '/login' ||
+    path === '/register' ||
+    path === getAdminEntryPath() ||
+    path.startsWith(getAdminEntryPath() + '/')
+  )
 })
 </script>
 

@@ -30,4 +30,14 @@ public class AiProviderRegistry {
         }
         return provider;
     }
+
+    /**
+     * 获取当前激活的 Provider（V3：全局单 Provider，模型编码由 ai_config 动态指定）
+     */
+    public AiProvider getActiveProvider() {
+        if (providers.isEmpty()) {
+            throw new IllegalArgumentException("未注册任何 AI Provider");
+        }
+        return providers.values().iterator().next();
+    }
 }

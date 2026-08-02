@@ -33,8 +33,22 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         String token = extractToken(request);
 
         if (StringUtils.hasText(token) && jwtTokenProvider.validateToken(token)) {
-            Long userId = jwtTokenProvider.getUserIdFromToken(token);
-            UserPrincipal userPrincipal = userDetailsService.loadUserById(userId);
+            String role = jwtTokenProvider.getRoleFromToken(token);
+            UserPrincipal userPrincipal;
+
+            if (Constant.ROLE_ADMIN.equals(role)) {
+                // 管理员：不在 user 表中，直接构建 ADMIN 认证信息，跳过数据库查询
+                userPrincipal = new UserPrincipal(
+                        Constant.ADMIN_USER_ID,
+                        jwtTokenProvider.getUsernameFromToken(token),
+                        "",
+                        true,
+                        Constant.ROLE_ADMIN
+                );
+            } else {
+                Long userId = jwtTokenProvider.getUserIdFromToken(token);
+                userPrincipal = userDetailsService.loadUserById(userId);
+            }
 
             UsernamePasswordAuthenticationToken authentication =
                     new UsernamePasswordAuthenticationToken(userPrincipal, null, userPrincipal.getAuthorities());

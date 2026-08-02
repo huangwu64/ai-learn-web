@@ -19,6 +19,12 @@ public class AiRequest {
     private Double temperature;
     /** 系统级指令（V2 新增） */
     private String systemPrompt;
+    /** 核采样概率（V3 新增，动态配置） */
+    private Double topP;
+    /** 话题新鲜度惩罚（V3 新增） */
+    private Double presencePenalty;
+    /** 频率惩罚（V3 新增） */
+    private Double frequencyPenalty;
 
     @Data
     public static class MessageItem {

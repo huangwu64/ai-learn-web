@@ -3,6 +3,8 @@ package com.prompttraining.module.message;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.prompttraining.ai.*;
+import com.prompttraining.ai.config.AiConfig;
+import com.prompttraining.ai.config.AiConfigService;
 import com.prompttraining.common.BusinessException;
 import com.prompttraining.common.Constant;
 import com.prompttraining.common.PageResult;
@@ -38,12 +40,10 @@ public class MessageServiceImpl implements MessageService {
     private final AiProviderRegistry aiProviderRegistry;
     private final SseEmitterService sseEmitterService;
     private final ObjectMapper objectMapper;
+    private final AiConfigService aiConfigService;
 
     @Value("${ai.context.max-messages:20}")
     private int maxContextMessages;
-
-    @Value("${ai.context.system-prompt:你是一个有帮助的AI助手，专注于帮助用户学习和优化提示词工程技能。}")
-    private String defaultSystemPrompt;
 
     /** AI 流式调用专用线程池，避免占用 ForkJoinPool.commonPool() */
     private ThreadPoolTaskExecutor aiStreamExecutor;
@@ -74,7 +74,7 @@ public class MessageServiceImpl implements MessageService {
         AiRequest aiRequest = buildAiRequest(session, content);
 
         // 3. 调用 AI Provider
-        AiProvider provider = aiProviderRegistry.getProvider(session.getModelCode());
+        AiProvider provider = aiProviderRegistry.getActiveProvider();
         AiResponse aiResponse;
         try {
             aiResponse = provider.chatSync(aiRequest);
@@ -193,7 +193,7 @@ public class MessageServiceImpl implements MessageService {
         AiRequest aiRequest = buildAiRequest(session, null);
 
         // 调用 AI
-        AiProvider provider = aiProviderRegistry.getProvider(session.getModelCode());
+        AiProvider provider = aiProviderRegistry.getActiveProvider();
         AiResponse aiResponse;
         try {
             aiResponse = provider.chatSync(aiRequest);
@@ -318,11 +318,16 @@ public class MessageServiceImpl implements MessageService {
             recentMsgs = recentMsgs.subList(recentMsgs.size() - maxContextMessages, recentMsgs.size());
         }
 
+        // V3：AI 配置从 ai_config 动态读取（管理员界面可调）
+        AiConfig cfg = aiConfigService.getConfig();
+        String systemPrompt = cfg.getSystemPrompt() != null && !cfg.getSystemPrompt().isBlank()
+                ? cfg.getSystemPrompt() : null;
+
         List<AiRequest.MessageItem> items = new ArrayList<>();
 
-        // 添加 System Prompt（V2 新增）
-        if (defaultSystemPrompt != null && !defaultSystemPrompt.isBlank()) {
-            items.add(new AiRequest.MessageItem("system", defaultSystemPrompt));
+        // 添加 System Prompt（V3：从管理员动态配置读取）
+        if (systemPrompt != null) {
+            items.add(new AiRequest.MessageItem("system", systemPrompt));
         }
 
         for (Message msg : recentMsgs) {
@@ -334,12 +339,17 @@ public class MessageServiceImpl implements MessageService {
         }
 
         log.debug("构建 AI 请求: 历史消息 {} 条, systemPrompt={}, 总消息 {} 条",
-                recentMsgs.size(), defaultSystemPrompt != null, items.size());
+                recentMsgs.size(), systemPrompt != null, items.size());
 
         AiRequest request = new AiRequest();
-        request.setModelCode(session.getModelCode());
+        request.setModelCode(aiConfigService.getEffectiveModelCode());
         request.setMessages(items);
-        request.setSystemPrompt(defaultSystemPrompt);
+        request.setSystemPrompt(systemPrompt);
+        request.setMaxTokens(cfg.getMaxTokens());
+        request.setTemperature(cfg.getTemperature());
+        request.setTopP(cfg.getTopP());
+        request.setPresencePenalty(cfg.getPresencePenalty());
+        request.setFrequencyPenalty(cfg.getFrequencyPenalty());
         return request;
     }
 
@@ -354,7 +364,7 @@ public class MessageServiceImpl implements MessageService {
             StringBuilder fullContent = new StringBuilder();
 
             try {
-                AiProvider provider = aiProviderRegistry.getProvider(modelCode);
+                AiProvider provider = aiProviderRegistry.getActiveProvider();
                 provider.chatStream(aiRequest, new StreamCallback() {
                     @Override
                     public void onChunk(String chunk) {

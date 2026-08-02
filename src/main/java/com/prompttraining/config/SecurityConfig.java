@@ -50,6 +50,11 @@ public class SecurityConfig {
                 .requestMatchers(HttpMethod.POST, "/api/v1/auth/register").permitAll()
                 .requestMatchers(HttpMethod.POST, "/api/v1/auth/login").permitAll()
                 .requestMatchers(HttpMethod.POST, "/api/v1/auth/refresh").permitAll()
+                // V3：管理员登录放行 + 公开接口放行
+                .requestMatchers(HttpMethod.POST, "/api/v1/admin/auth/login").permitAll()
+                .requestMatchers("/api/v1/public/**").permitAll()
+                // V3：管理员接口需要 ADMIN 角色（需放在 /api/v1/** 之前）
+                .requestMatchers("/api/v1/admin/**").hasRole("ADMIN")
                 // Swagger/Knife4j 放行
                 .requestMatchers("/swagger-ui/**", "/v3/api-docs/**", "/doc.html").permitAll()
                 // 错误页面放行

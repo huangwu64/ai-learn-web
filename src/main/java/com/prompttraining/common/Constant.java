@@ -27,4 +27,14 @@ public interface Constant {
     String TOKEN_PREFIX = "Bearer ";
     String ACCESS_TOKEN_KEY = "access_token";
     String REFRESH_TOKEN_KEY = "refresh_token";
+
+    /** V3 角色常量 */
+    String ROLE_USER = "USER";
+    String ROLE_ADMIN = "ADMIN";
+
+    /** V3 管理员哨兵用户 ID（管理员不在 user 表中） */
+    Long ADMIN_USER_ID = 0L;
+
+    /** V3 AI Provider 编码 */
+    String AI_PROVIDER_CODE = "deepseek";
 }

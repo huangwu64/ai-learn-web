@@ -1,10 +1,12 @@
 package com.prompttraining.ai.deepseek;
 
-import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.prompttraining.ai.*;
+import com.prompttraining.ai.config.AiConfigService;
+import com.prompttraining.ai.config.dto.AiConfigUpdateRequest;
 import com.prompttraining.common.BusinessException;
+import com.prompttraining.common.Constant;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.MediaType;
@@ -16,42 +18,56 @@ import java.time.Duration;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 
 /**
  * DeepSeek AI Provider 实现
- * 
- * 支持两种调用方式：
- * 1. chatSync: 同步调用，返回完整回复
- * 2. chatStream: 流式调用（SSE），逐块返回内容
- * 
- * API 文档参考：https://platform.deepseek.com/api-docs
+ *
+ * V3 改造：API 地址 / Key / 模型编码 / 参数均从 ai_config 动态配置读取，
+ * 管理员界面修改后即时生效，无需重启服务。
  */
 @Slf4j
 @Component
 @RequiredArgsConstructor
 public class DeepSeekProvider implements AiProvider {
 
-    private final DeepSeekConfig config;
+    private final AiConfigService aiConfigService;
     private final ObjectMapper objectMapper;
-    private WebClient webClient;
+
+    private volatile WebClient webClient;
+    private volatile String cachedBaseUrl;
+    private volatile String cachedApiKey;
 
     /**
-     * 获取或创建 WebClient 实例（懒加载）
+     * 获取或重建 WebClient（懒加载 + 配置变更时自动重建）
      */
     private WebClient getWebClient() {
-        if (webClient == null) {
-            this.webClient = WebClient.builder()
-                    .baseUrl(config.getApiBaseUrl())
-                    .defaultHeader("Authorization", "Bearer " + config.getApiKey())
-                    .defaultHeader("Content-Type", "application/json")
-                    .build();
+        String baseUrl = aiConfigService.getEffectiveApiBaseUrl();
+        String apiKey = aiConfigService.getEffectiveApiKey();
+
+        WebClient client = webClient;
+        if (client == null || !Objects.equals(cachedBaseUrl, baseUrl) || !Objects.equals(cachedApiKey, apiKey)) {
+            synchronized (this) {
+                client = webClient;
+                if (client == null || !Objects.equals(cachedBaseUrl, baseUrl) || !Objects.equals(cachedApiKey, apiKey)) {
+                    client = WebClient.builder()
+                            .baseUrl(baseUrl)
+                            .defaultHeader("Authorization", "Bearer " + apiKey)
+                            .defaultHeader("Content-Type", "application/json")
+                            .build();
+                    webClient = client;
+                    cachedBaseUrl = baseUrl;
+                    cachedApiKey = apiKey;
+                    log.info("DeepSeek WebClient 已重建: baseUrl={}", baseUrl);
+                }
+            }
         }
-        return webClient;
+        return client;
     }
 
     @Override
     public String getModelCode() {
-        return config.getModelCode();
+        return Constant.AI_PROVIDER_CODE;
     }
 
     @Override
@@ -82,7 +98,7 @@ public class DeepSeekProvider implements AiProvider {
 
             AiResponse response = new AiResponse();
             response.setContent(content);
-            response.setModelCode(config.getModelCode());
+            response.setModelCode(getEffectiveModel(request));
             response.setTokenCount(tokenCount);
             response.setFinishReason(choices.get(0).path("finish_reason").asText("stop"));
             log.info("<<< DeepSeek 同步响应: contentLength={}, tokenCount={}, finishReason={}",
@@ -163,7 +179,7 @@ public class DeepSeekProvider implements AiProvider {
                         log.info("<<< DeepSeek 流式完成: tokenCount={}", totalTokens[0]);
                         AiResponse response = new AiResponse();
                         response.setContent("");
-                        response.setModelCode(config.getModelCode());
+                        response.setModelCode(getEffectiveModel(request));
                         response.setTokenCount(totalTokens[0]);
                         response.setFinishReason("stop");
                         callback.onComplete(response);
@@ -181,16 +197,31 @@ public class DeepSeekProvider implements AiProvider {
 
     @Override
     public boolean healthCheck() {
+        return healthCheck(null);
+    }
+
+    /**
+     * 健康检查（V3）：可用待保存的配置覆盖值测试连接
+     */
+    public boolean healthCheck(AiConfigUpdateRequest override) {
+        String baseUrl = override != null && override.getApiBaseUrl() != null && !override.getApiBaseUrl().isBlank()
+                ? override.getApiBaseUrl().trim() : aiConfigService.getEffectiveApiBaseUrl();
+        String apiKey = override != null && override.getApiKey() != null && !override.getApiKey().isBlank()
+                ? override.getApiKey().trim() : aiConfigService.getEffectiveApiKey();
+        String modelCode = override != null && override.getModelCode() != null && !override.getModelCode().isBlank()
+                ? override.getModelCode().trim() : aiConfigService.getEffectiveModelCode();
         try {
-            Map<String, Object> body = buildRequestBody(
-                    new AiRequest() {{
-                        setModelCode(config.getModelCode());
-                        setMessages(List.of(new AiRequest.MessageItem("user", "ping")));
-                        setMaxTokens(1);
-                    }},
-                    false
-            );
-            getWebClient().post()
+            WebClient client = WebClient.builder()
+                    .baseUrl(baseUrl)
+                    .defaultHeader("Authorization", "Bearer " + apiKey)
+                    .defaultHeader("Content-Type", "application/json")
+                    .build();
+            Map<String, Object> body = new HashMap<>();
+            body.put("model", modelCode);
+            body.put("messages", List.of(Map.of("role", "user", "content", "ping")));
+            body.put("max_tokens", 1);
+            body.put("stream", false);
+            client.post()
                     .uri("/v1/chat/completions")
                     .bodyValue(body)
                     .retrieve()
@@ -205,17 +236,31 @@ public class DeepSeekProvider implements AiProvider {
     }
 
     /**
-     * 构建 DeepSeek API 请求体
+     * 构建 DeepSeek API 请求体（V3：从动态配置取值，请求级参数优先）
      */
     private Map<String, Object> buildRequestBody(AiRequest request, boolean stream) {
+        var cfg = aiConfigService.getConfig();
         Map<String, Object> body = new HashMap<>();
-        body.put("model", config.getModelCode());
+        body.put("model", request.getModelCode() != null ? request.getModelCode() : aiConfigService.getEffectiveModelCode());
         body.put("messages", request.getMessages().stream()
                 .map(m -> Map.of("role", m.getRole(), "content", m.getContent()))
                 .toList());
-        body.put("max_tokens", request.getMaxTokens() != null ? request.getMaxTokens() : config.getMaxTokens());
-        body.put("temperature", request.getTemperature() != null ? request.getTemperature() : config.getTemperature());
+        body.put("max_tokens", request.getMaxTokens() != null ? request.getMaxTokens() : cfg.getMaxTokens());
+        body.put("temperature", request.getTemperature() != null ? request.getTemperature() : cfg.getTemperature());
+        Double topP = request.getTopP() != null ? request.getTopP() : cfg.getTopP();
+        if (topP != null) body.put("top_p", topP);
+        Double presencePenalty = request.getPresencePenalty() != null ? request.getPresencePenalty() : cfg.getPresencePenalty();
+        if (presencePenalty != null) body.put("presence_penalty", presencePenalty);
+        Double frequencyPenalty = request.getFrequencyPenalty() != null ? request.getFrequencyPenalty() : cfg.getFrequencyPenalty();
+        if (frequencyPenalty != null) body.put("frequency_penalty", frequencyPenalty);
         body.put("stream", stream);
         return body;
+    }
+
+    /**
+     * 获取实际生效的模型编码（请求级优先，否则取动态配置）
+     */
+    private String getEffectiveModel(AiRequest request) {
+        return request.getModelCode() != null ? request.getModelCode() : aiConfigService.getEffectiveModelCode();
     }
 }

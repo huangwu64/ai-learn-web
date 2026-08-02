@@ -4,6 +4,67 @@
 
 ---
 
+## V3.0 (2026-08-02)
+
+### 🎯 版本目标
+
+1. 分离管理员前端入口（可配置特殊 URL）
+2. AI 模型与 API 配置迁移到管理员动态配置
+3. 用户界面精简（移除训练模块）
+
+### ✨ 新增功能
+
+#### 管理员门户（全新）
+
+- **可配置入口**：`admin.entry-path`（默认 `/admin`），前端启动时从公开接口 `GET /api/v1/public/admin-entry` 获取并动态注册路由
+- **管理员登录**：默认 `admin` / `123456`，账号密码在配置文件（`admin.username` / `admin.password`）中可修改，支持明文或 BCrypt 哈希
+- **管理员 Token**：独立 JWT（`role=ADMIN`），与用户 Token 隔离存储（前端 `admin_token`）
+
+#### 动态 AI 配置
+
+- 新增 `ai_config` 表，管理员在管理界面配置：
+  - API 地址 / API Key（界面脱敏，`****后4位`）
+  - 模型编码（可自由输入，如 `deepseek-chat` / `deepseek-reasoner` / v4 pro / flash）
+  - 模型参数：`max_tokens` / `temperature` / `top_p` / `presence_penalty` / `frequency_penalty`
+  - 初始提示词（System Prompt）
+- `AiConfigService` 运行时缓存，保存后**即时生效，无需重启**
+- 新增连接测试接口 `POST /api/v1/admin/ai-config/test`
+- `api_key` 为空时自动回退到 `application-dev.yml` 的 `ai.deepseek.api-key`，平滑升级
+
+#### 用户端精简
+
+- 移除「训练」模块（`/training` 路由、导航、`TrainingView.vue`），训练能力合并入管理员初始提示词配置
+- 用户端仅保留「对话」与「个人中心」
+
+### 🔧 技术变更
+
+- **JWT 角色体系**：Access Token 增加 `role` 载荷（USER / ADMIN），旧 Token 兼容（无 role 默认 USER）
+- **安全配置**：`/api/v1/admin/**` 需 `ROLE_ADMIN`；`/api/v1/public/**`、`/api/v1/admin/auth/login` 放行
+- **AI 抽象层改造**：`DeepSeekProvider` 改从 `AiConfigService` 读取动态配置；`AiRequest` 增加 `topP` / `presencePenalty` / `frequencyPenalty`；`AiProviderRegistry` 增加 `getActiveProvider()`
+- **数据库迁移**：`V3__admin_and_ai_config.sql`（新建 `ai_config` 表 + 默认行）
+
+### 📁 变更文件
+
+| 文件 | 操作 |
+|------|------|
+| `src/main/resources/application.yml` | 修改：新增 `admin` 配置段 |
+| `src/main/resources/db/migration/V3__admin_and_ai_config.sql` | 新增 |
+| `ai/config/AiConfig.java` / `AiConfigMapper.java` / `AiConfigService.java` | 新增 |
+| `ai/config/dto/AiConfigUpdateRequest.java` / `AiConfigResponse.java` | 新增 |
+| `ai/AiRequest.java` / `AiProviderRegistry.java` | 修改 |
+| `ai/deepseek/DeepSeekProvider.java` | 修改：动态配置 |
+| `config/AdminConfig.java` / `SecurityConfig.java` | 新增 / 修改 |
+| `security/JwtTokenProvider.java` / `JwtAuthenticationFilter.java` / `UserPrincipal.java` | 修改：角色体系 |
+| `module/admin/`（AdminController/AdminAuthService/PublicController/AiConfigController + dto） | 新增 |
+| `module/message/MessageServiceImpl.java` | 修改：接入动态 AI 配置 |
+| `web/src/views/admin/AdminPortalView.vue` | 新增：管理员门户 |
+| `web/src/api/admin.ts` / `adminRequest.ts` / `types/admin.ts` | 新增 |
+| `web/src/utils/adminAuth.ts` / `adminEntry.ts` | 新增 |
+| `web/src/main.ts` / `App.vue` / `router/index.ts` / `AppLayout.vue` | 修改 |
+| `web/src/views/TrainingView.vue` | 删除 |
+
+---
+
 ## V2.1 (2026-08-02)
 
 ### 🐛 Bug 修复

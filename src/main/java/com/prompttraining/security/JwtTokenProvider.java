@@ -1,5 +1,6 @@
 package com.prompttraining.security;
 
+import com.prompttraining.common.Constant;
 import io.jsonwebtoken.*;
 import io.jsonwebtoken.security.Keys;
 import lombok.extern.slf4j.Slf4j;
@@ -31,20 +32,40 @@ public class JwtTokenProvider {
     }
 
     /**
-     * 生成 Access Token
+     * 生成 Access Token（V3：默认角色 USER）
      */
     public String generateAccessToken(Long userId, String username) {
+        return generateAccessToken(userId, username, Constant.ROLE_USER, accessTokenExpiration);
+    }
+
+    /**
+     * 生成带角色的 Access Token（V3）
+     *
+     * @param userId            用户 ID（管理员使用哨兵 ID 0）
+     * @param username          用户名
+     * @param role              角色：USER / ADMIN
+     * @param expirationSeconds 有效期（秒）
+     */
+    public String generateAccessToken(Long userId, String username, String role, long expirationSeconds) {
         Date now = new Date();
-        Date expiryDate = new Date(now.getTime() + accessTokenExpiration * 1000);
+        Date expiryDate = new Date(now.getTime() + expirationSeconds * 1000);
 
         return Jwts.builder()
                 .subject(String.valueOf(userId))
                 .claim("userId", userId)
                 .claim("username", username)
+                .claim("role", role)
                 .issuedAt(now)
                 .expiration(expiryDate)
                 .signWith(secretKey)
                 .compact();
+    }
+
+    /**
+     * 生成管理员 Token（V3）
+     */
+    public String generateAdminToken(String username, long expirationSeconds) {
+        return generateAccessToken(Constant.ADMIN_USER_ID, username, Constant.ROLE_ADMIN, expirationSeconds);
     }
 
     /**
@@ -86,6 +107,15 @@ public class JwtTokenProvider {
     public Long getTokenIdFromRefreshToken(String token) {
         Claims claims = parseClaims(token);
         return claims.get("tokenId", Long.class);
+    }
+
+    /**
+     * 从 Token 中解析角色（V3 新增；旧 Token 无 role 载荷时默认 USER）
+     */
+    public String getRoleFromToken(String token) {
+        Claims claims = parseClaims(token);
+        String role = claims.get("role", String.class);
+        return role != null ? role : Constant.ROLE_USER;
     }
 
     /**

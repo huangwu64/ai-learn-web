@@ -22,12 +22,13 @@ const router = createRouter({
       component: () => import('@/views/ChatView.vue'),
       meta: { requiresAuth: true },
     },
-    {
-      path: '/training',
-      name: 'training',
-      component: () => import('@/views/TrainingView.vue'),
-      meta: { requiresAuth: true },
-    },
+    // [V3 移除] 训练模块已合并入管理员初始提示词，用户端不再展示
+    // {
+    //   path: '/training',
+    //   name: 'training',
+    //   component: () => import('@/views/TrainingView.vue'),
+    //   meta: { requiresAuth: true },
+    // },
     // [V3 启用] 知识库模块相关代码，V2 版本暂时注释
     // {
     //   path: '/knowledge',
@@ -62,5 +63,17 @@ router.beforeEach((to, from, next) => {
 
   next()
 })
+
+/**
+ * 动态注册管理员门户路由（V3）
+ * @param path 管理员入口路径（可配置，默认 /admin）
+ */
+export function registerAdminPortal(path: string) {
+  router.addRoute({
+    path,
+    name: 'adminPortal',
+    component: () => import('@/views/admin/AdminPortalView.vue'),
+  })
+}
 
 export default router
