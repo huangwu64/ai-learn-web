@@ -18,16 +18,22 @@
     - 前端 ChatPanel 处理 `reasoning` 事件并以「🤔 深度思考中」折叠框展示；chat store 新增 `streamingReasoning`
     - 同步路径 `chatSync` 同样增加 content 为 null 时的兜底（回退 `reasoning_content`）
 
+### ✨ 新增功能
+
+- **AI 可回答自己的模型名**：系统提示词自动注入模型身份（`你当前被调用的模型编码是 xxx`），AI 被问「你是什么模型」时能如实回答。可通过 `ai.context.inject-model-identity` 配置开关（默认开启）。
+- **消息模型编码修正**：后端保存的 assistant 消息 `model_code` 改为记录当前生效模型（`ai_config`），而非会话创建时的旧值。
+
 ### 📁 变更文件
 
 | 文件 | 操作 |
 |------|------|
 | `ai/StreamCallback.java` | 修改：新增 `onReasoning` 默认方法 |
 | `ai/deepseek/DeepSeekProvider.java` | 修改：null 防护 + reasoning_content 解析 |
-| `module/message/MessageServiceImpl.java` | 修改：转发推理 SSE 事件 |
+| `module/message/MessageServiceImpl.java` | 修改：转发推理 SSE 事件 + 模型身份注入 + 模型编码修正 |
 | `web/src/types/message.ts` | 修改：SSEChunk 增加 `reasoning` 类型 |
 | `web/src/stores/chat.ts` | 修改：新增 `streamingReasoning` |
 | `web/src/components/chat/ChatPanel.vue` | 修改：处理并展示推理内容 |
+| `src/main/resources/application-dev.yml` / `.example` | 修改：新增 `inject-model-identity` 开关 |
 
 无数据库变更。
 

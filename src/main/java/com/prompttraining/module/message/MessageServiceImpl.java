@@ -45,6 +45,10 @@ public class MessageServiceImpl implements MessageService {
     @Value("${ai.context.max-messages:20}")
     private int maxContextMessages;
 
+    /** 是否向 AI 注入模型身份（V3.1），使 AI 能如实回答"你是什么模型" */
+    @Value("${ai.context.inject-model-identity:true}")
+    private boolean injectModelIdentity;
+
     /** AI 流式调用专用线程池，避免占用 ForkJoinPool.commonPool() */
     private ThreadPoolTaskExecutor aiStreamExecutor;
 
@@ -91,7 +95,7 @@ public class MessageServiceImpl implements MessageService {
         assistantMsg.setRole("assistant");
         assistantMsg.setContent(aiResponse.getContent());
         assistantMsg.setTokenCount(aiResponse.getTokenCount() != null ? aiResponse.getTokenCount() : 0);
-        assistantMsg.setModelCode(session.getModelCode());
+        assistantMsg.setModelCode(aiConfigService.getEffectiveModelCode());
         messageMapper.insert(assistantMsg);
 
         // 5. 更新会话消息数
@@ -210,7 +214,7 @@ public class MessageServiceImpl implements MessageService {
         assistantMsg.setRole("assistant");
         assistantMsg.setContent(aiResponse.getContent());
         assistantMsg.setTokenCount(aiResponse.getTokenCount() != null ? aiResponse.getTokenCount() : 0);
-        assistantMsg.setModelCode(session.getModelCode());
+        assistantMsg.setModelCode(aiConfigService.getEffectiveModelCode());
         messageMapper.insert(assistantMsg);
 
         session.setMessageCount(session.getMessageCount() + 1);
@@ -323,6 +327,13 @@ public class MessageServiceImpl implements MessageService {
         String systemPrompt = cfg.getSystemPrompt() != null && !cfg.getSystemPrompt().isBlank()
                 ? cfg.getSystemPrompt() : null;
 
+        // V3.1：向 AI 注入模型身份，使其能如实回答"你是什么模型"
+        if (injectModelIdentity) {
+            String identity = "你当前被调用的模型编码是 " + aiConfigService.getEffectiveModelCode()
+                    + "（DeepSeek 大模型）。当用户询问你的模型名称/身份时，请如实告知。";
+            systemPrompt = (identity + (systemPrompt != null ? "\n\n" + systemPrompt : "")).trim();
+        }
+
         List<AiRequest.MessageItem> items = new ArrayList<>();
 
         // 添加 System Prompt（V3：从管理员动态配置读取）
@@ -405,7 +416,7 @@ public class MessageServiceImpl implements MessageService {
                         assistantMsg.setRole("assistant");
                         assistantMsg.setContent(fullContent.toString());
                         assistantMsg.setTokenCount(response.getTokenCount() != null ? response.getTokenCount() : 0);
-                        assistantMsg.setModelCode(session.getModelCode());
+                        assistantMsg.setModelCode(aiConfigService.getEffectiveModelCode());
                         messageMapper.insert(assistantMsg);
 
                         // 更新会话

@@ -43,6 +43,8 @@ ai:
   context:
     max-messages: 20
     system-prompt: "你是一个有帮助的AI助手，专注于帮助用户学习和优化提示词工程技能。"
+    # 是否向 AI 注入模型身份（开启后 AI 能回答"你是什么模型"）
+    inject-model-identity: true
 
 # JWT 配置
 jwt:
