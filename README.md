@@ -77,11 +77,21 @@ CREATE DATABASE IF NOT EXISTS prompt_training DEFAULT CHARACTER SET utf8mb4;
 ### 后端
 
 ```bash
-# 配置 application-dev.yml 中的数据库连接和 DeepSeek API Key
+# 1. 复制配置模板（不含真实密钥，可提交）
+cp src/main/resources/application-dev.yml.example src/main/resources/application-dev.yml
+# 2. 修改 application-dev.yml 中的数据库连接
+# 3. 在项目根目录创建 application-local.yml（被 gitignore 忽略，不会入库），填入 API Key：
+#      ai:
+#        deepseek:
+#          api-key: sk-你的Key
+#    （也可不创建，启动后在管理员界面 /admin 配置 Key，保存到数据库）
 mvn spring-boot:run
 # 服务端口：8080
 # API 文档：http://localhost:8080/doc.html
+# 管理员入口：http://localhost:5173/admin（默认账号 admin / 123456，可在配置中修改）
 ```
+
+> 💡 **密钥安全**：`application-*.yml`（含 `application-local.yml`、`application-dev.yml`）已被 `.gitignore` 忽略、不会进入仓库。API Key 只会以「本地文件」或「数据库 ai_config 表」两种形式存在，仓库公开也不会泄露。
 
 ### 前端
 

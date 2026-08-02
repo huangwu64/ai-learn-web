@@ -1,0 +1,51 @@
+# ============================================================
+# 配置示例（本文件可提交到仓库，不含真实敏感信息）
+# 使用步骤：
+#   1. 复制本文件为 application-dev.yml（该文件被 .gitignore 忽略，不入库）
+#   2. 在 application-dev.yml 中修改数据库连接
+#   3. 在项目根目录创建 application-local.yml 填写真实 API Key（也被忽略，不入库），
+#      或通过管理员界面（/admin）配置 Key
+# ============================================================
+spring:
+  config:
+    # 加载项目根目录的本地密钥文件（可选，文件不存在不报错）
+    import: optional:file:./application-local.yml
+
+  datasource:
+    driver-class-name: com.mysql.cj.jdbc.Driver
+    url: jdbc:mysql://localhost:3306/prompt_training?useUnicode=true&characterEncoding=utf-8&serverTimezone=Asia/Shanghai&useSSL=false&allowPublicKeyRetrieval=true
+    username: root
+    password: CHANGE_ME
+
+  data:
+    redis:
+      host: localhost
+      port: 6379
+      timeout: 3000ms
+      lettuce:
+        pool:
+          max-active: 8
+          max-idle: 8
+          min-idle: 0
+
+# ============================================================
+# AI Provider 配置
+# 真实 API Key 请填写在 application-local.yml 或管理界面，不要写在本文件
+# ============================================================
+ai:
+  deepseek:
+    api-base-url: https://api.deepseek.com
+    api-key:
+    model-code: deepseek-chat
+    max-tokens: 4096
+    temperature: 0.7
+
+  context:
+    max-messages: 20
+    system-prompt: "你是一个有帮助的AI助手，专注于帮助用户学习和优化提示词工程技能。"
+
+# JWT 配置
+jwt:
+  secret: CHANGE_ME_TO_A_RANDOM_BASE64_SECRET
+  access-token-expiration: 7200
+  refresh-token-expiration: 604800
