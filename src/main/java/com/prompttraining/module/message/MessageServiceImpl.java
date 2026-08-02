@@ -330,7 +330,7 @@ public class MessageServiceImpl implements MessageService {
         // V3.1：向 AI 注入模型身份，使其能如实回答"你是什么模型"
         if (injectModelIdentity) {
             String identity = "你当前被调用的模型编码是 " + aiConfigService.getEffectiveModelCode()
-                    + "（DeepSeek 大模型）。当用户询问你的模型名称/身份时，请如实告知。";
+                    + "（DeepSeek 大模型）。仅在用户明确询问你的模型名称/身份时如实告知，其他情况下不要主动提及自己的模型名称。";
             systemPrompt = (identity + (systemPrompt != null ? "\n\n" + systemPrompt : "")).trim();
         }
 
