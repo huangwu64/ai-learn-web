@@ -11,6 +11,16 @@ public interface StreamCallback {
     void onChunk(String content);
 
     /**
+     * 收到一段推理内容（reasoning_content，V3.1 新增）
+     * 推理模型（如 deepseek-v4-flash）在输出正式回答前会先输出推理过程，
+     * 该内容独立于正式回答，调用方可按需展示。
+     * 默认空实现，兼容不需要展示推理内容的调用方。
+     */
+    default void onReasoning(String reasoning) {
+        // 默认不处理
+    }
+
+    /**
      * 流式传输完成
      */
     void onComplete(AiResponse response);

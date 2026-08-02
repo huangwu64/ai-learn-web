@@ -20,7 +20,7 @@ export interface MessageSendResponse {
 
 /** SSE 流式数据块 */
 export interface SSEChunk {
-  type: 'content' | 'done' | 'error'
+  type: 'content' | 'reasoning' | 'done' | 'error'
   content?: string
   messageId?: number
   tokenCount?: number

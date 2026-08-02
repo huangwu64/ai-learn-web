@@ -4,6 +4,35 @@
 
 ---
 
+## V3.1 (2026-08-02)
+
+### 🐛 Bug 修复
+
+- **修复推理模型流式输出无限 "null"**
+  - 现象：使用 `deepseek-v4-flash` 等推理模型对话时，界面持续输出 `nullnullnull...`
+  - 根因：推理模型流式返回的 `delta.content` 在推理阶段为 `null`，`JsonNode.asText()` 对 null 节点返回字符串 `"null"`，被当作内容逐块推送给前端
+  - 修复：
+    - `DeepSeekProvider` 对 `content` 增加 null 防护（仅 `isTextual()` 时取内容）
+    - 新增 `reasoning_content` 推理内容解析，通过独立 SSE 事件 `{"type":"reasoning"}` 转发
+    - `StreamCallback` 增加 `onReasoning` 默认方法；`MessageServiceImpl` 转发推理事件
+    - 前端 ChatPanel 处理 `reasoning` 事件并以「🤔 深度思考中」折叠框展示；chat store 新增 `streamingReasoning`
+    - 同步路径 `chatSync` 同样增加 content 为 null 时的兜底（回退 `reasoning_content`）
+
+### 📁 变更文件
+
+| 文件 | 操作 |
+|------|------|
+| `ai/StreamCallback.java` | 修改：新增 `onReasoning` 默认方法 |
+| `ai/deepseek/DeepSeekProvider.java` | 修改：null 防护 + reasoning_content 解析 |
+| `module/message/MessageServiceImpl.java` | 修改：转发推理 SSE 事件 |
+| `web/src/types/message.ts` | 修改：SSEChunk 增加 `reasoning` 类型 |
+| `web/src/stores/chat.ts` | 修改：新增 `streamingReasoning` |
+| `web/src/components/chat/ChatPanel.vue` | 修改：处理并展示推理内容 |
+
+无数据库变更。
+
+---
+
 ## V3.0 (2026-08-02)
 
 ### 🎯 版本目标

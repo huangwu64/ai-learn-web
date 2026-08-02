@@ -383,6 +383,21 @@ public class MessageServiceImpl implements MessageService {
                     }
 
                     @Override
+                    public void onReasoning(String reasoning) {
+                        try {
+                            Map<String, Object> eventData = new LinkedHashMap<>();
+                            eventData.put("type", "reasoning");
+                            eventData.put("content", reasoning);
+                            String json = objectMapper.writeValueAsString(eventData);
+                            emitter.send(SseEmitter.event()
+                                    .name("reasoning")
+                                    .data(json));
+                        } catch (IOException e) {
+                            log.error("SSE 推理内容推送失败", e);
+                        }
+                    }
+
+                    @Override
                     public void onComplete(AiResponse response) {
                         // 保存 AI 消息
                         Message assistantMsg = new Message();

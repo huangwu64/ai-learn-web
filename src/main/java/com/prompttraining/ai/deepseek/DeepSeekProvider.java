@@ -94,7 +94,11 @@ public class DeepSeekProvider implements AiProvider {
             }
 
             JsonNode message = choices.get(0).get("message");
-            String content = message.get("content").asText();
+            // 推理模型可能 content 为 null，兜底取 reasoning_content
+            JsonNode contentNode = message.get("content");
+            String content = (contentNode != null && contentNode.isTextual())
+                    ? contentNode.asText()
+                    : message.path("reasoning_content").asText("");
             int tokenCount = root.path("usage").path("total_tokens").asInt(0);
 
             AiResponse response = new AiResponse();
@@ -159,10 +163,22 @@ public class DeepSeekProvider implements AiProvider {
                                 JsonNode choicesNode = node.get("choices");
                                 if (choicesNode != null && !choicesNode.isEmpty()) {
                                     JsonNode delta = choicesNode.get(0).get("delta");
-                                    if (delta != null && delta.has("content")) {
-                                        String content = delta.get("content").asText();
-                                        if (!content.isEmpty()) {
-                                            callback.onChunk(content);
+                                    if (delta != null) {
+                                        // 正式回答内容（推理模型在推理阶段 content 为 null，需跳过）
+                                        JsonNode contentNode = delta.get("content");
+                                        if (contentNode != null && contentNode.isTextual()) {
+                                            String content = contentNode.asText();
+                                            if (!content.isEmpty()) {
+                                                callback.onChunk(content);
+                                            }
+                                        }
+                                        // 推理内容（deepseek-v4-flash 等推理模型的思考过程）
+                                        JsonNode reasoningNode = delta.get("reasoning_content");
+                                        if (reasoningNode != null && reasoningNode.isTextual()) {
+                                            String reasoning = reasoningNode.asText();
+                                            if (!reasoning.isEmpty()) {
+                                                callback.onReasoning(reasoning);
+                                            }
                                         }
                                     }
                                 }

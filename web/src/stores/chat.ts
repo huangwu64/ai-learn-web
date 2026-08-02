@@ -15,6 +15,9 @@ export const useChatStore = defineStore('chat', () => {
   /** 当前流式回复的临时内容 */
   const streamingContent = ref('')
 
+  /** 当前流式回复的推理内容（deepseek-v4-flash 等推理模型） */
+  const streamingReasoning = ref('')
+
   /** 消息游标分页 */
   const nextCursor = ref<number | null>(null)
   const hasMore = ref(false)
@@ -23,6 +26,7 @@ export const useChatStore = defineStore('chat', () => {
     activeSessionId.value = sessionId
     messages.value = []
     streamingContent.value = ''
+    streamingReasoning.value = ''
     isStreaming.value = false
     nextCursor.value = null
     hasMore.value = false
@@ -51,10 +55,15 @@ export const useChatStore = defineStore('chat', () => {
   function startStreaming() {
     isStreaming.value = true
     streamingContent.value = ''
+    streamingReasoning.value = ''
   }
 
   function appendStreamChunk(chunk: string) {
     streamingContent.value += chunk
+  }
+
+  function appendReasoningChunk(chunk: string) {
+    streamingReasoning.value += chunk
   }
 
   function finishStreaming(messageId: number, tokenCount: number) {
@@ -68,6 +77,7 @@ export const useChatStore = defineStore('chat', () => {
       createdAt: new Date().toISOString(),
     })
     streamingContent.value = ''
+    streamingReasoning.value = ''
   }
 
   function stopStreaming() {
@@ -83,6 +93,7 @@ export const useChatStore = defineStore('chat', () => {
       })
     }
     streamingContent.value = ''
+    streamingReasoning.value = ''
   }
 
   /** 清除所有状态（退出登录时调用） */
@@ -90,6 +101,7 @@ export const useChatStore = defineStore('chat', () => {
     activeSessionId.value = null
     messages.value = []
     streamingContent.value = ''
+    streamingReasoning.value = ''
     isStreaming.value = false
     nextCursor.value = null
     hasMore.value = false
@@ -100,6 +112,7 @@ export const useChatStore = defineStore('chat', () => {
     messages,
     isStreaming,
     streamingContent,
+    streamingReasoning,
     nextCursor,
     hasMore,
     setActiveSession,
@@ -109,6 +122,7 @@ export const useChatStore = defineStore('chat', () => {
     appendAssistantMessage,
     startStreaming,
     appendStreamChunk,
+    appendReasoningChunk,
     finishStreaming,
     stopStreaming,
     resetAll,

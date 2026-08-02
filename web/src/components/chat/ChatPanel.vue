@@ -30,6 +30,12 @@
         @regenerate="handleRegenerate"
       />
 
+      <!-- 推理过程（推理模型的思考内容，如 deepseek-v4-flash） -->
+      <div v-if="chatStore.isStreaming && chatStore.streamingReasoning" class="reasoning-box">
+        <div class="reasoning-title">🤔 深度思考中</div>
+        <div class="reasoning-content">{{ chatStore.streamingReasoning }}</div>
+      </div>
+
       <!-- 流式回复的临时气泡 -->
       <MessageBubble
         v-if="chatStore.isStreaming && chatStore.streamingContent"
@@ -289,6 +295,8 @@ async function handleSend(content: string) {
             if (data.type === 'content' && data.content) {
               chatStore.appendStreamChunk(data.content)
               scrollToBottom()
+            } else if (data.type === 'reasoning' && data.content) {
+              chatStore.appendReasoningChunk(data.content)
             } else if (data.type === 'done') {
               chatStore.finishStreaming(data.messageId ?? 0, data.tokenCount ?? 0)
               syncSessionInfo(sessionId, data.sessionTitle ? { title: data.sessionTitle } : {})
@@ -388,6 +396,8 @@ async function handleRegenerate(messageId: number) {
             if (data.type === 'content' && data.content) {
               chatStore.appendStreamChunk(data.content)
               scrollToBottom()
+            } else if (data.type === 'reasoning' && data.content) {
+              chatStore.appendReasoningChunk(data.content)
             } else if (data.type === 'done') {
               chatStore.finishStreaming(data.messageId ?? 0, data.tokenCount ?? 0)
               if (chatStore.activeSessionId) {
@@ -482,6 +492,30 @@ watch(() => chatStore.activeSessionId, (newId) => {
   display: flex;
   align-items: center;
   justify-content: center;
+}
+
+.reasoning-box {
+  margin: 4px 0;
+  padding: 10px 14px;
+  background: #f4f4f5;
+  border-radius: 8px;
+  border-left: 3px solid #c0c4cc;
+  max-height: 160px;
+  overflow-y: auto;
+
+  .reasoning-title {
+    font-size: 12px;
+    color: #909399;
+    margin-bottom: 6px;
+  }
+
+  .reasoning-content {
+    font-size: 13px;
+    color: #909399;
+    line-height: 1.6;
+    white-space: pre-wrap;
+    word-break: break-word;
+  }
 }
 
 .stream-loading {
