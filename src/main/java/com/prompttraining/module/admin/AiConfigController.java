@@ -12,6 +12,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.List;
 import java.util.Map;
 
 /**
@@ -31,6 +32,13 @@ public class AiConfigController {
     @GetMapping
     public Result<AiConfigResponse> getConfig() {
         return Result.ok(aiConfigService.toResponse());
+    }
+
+    @Operation(summary = "获取可用模型列表（V3.1）")
+    @GetMapping("/models")
+    public Result<Map<String, Object>> listModels() {
+        List<String> models = deepSeekProvider.listModels();
+        return Result.ok(Map.of("models", models));
     }
 
     @Operation(summary = "更新 AI 配置")

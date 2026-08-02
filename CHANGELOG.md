@@ -29,6 +29,7 @@
   - 初始提示词（System Prompt）
 - `AiConfigService` 运行时缓存，保存后**即时生效，无需重启**
 - 新增连接测试接口 `POST /api/v1/admin/ai-config/test`
+- 模型编码下拉框**动态读取可用模型**（`GET /api/v1/admin/ai-config/models`，调用 OpenAI 兼容的 `GET /models`），支持手动刷新按钮，获取失败时兜底常用选项
 - `api_key` 为空时自动回退到 `application-dev.yml` 的 `ai.deepseek.api-key`，平滑升级
 
 #### 用户端精简

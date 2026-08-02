@@ -82,20 +82,30 @@
             <div class="field-tip">留空表示不修改；已配置：{{ config.hasApiKey ? config.apiKeyMasked : '无' }}</div>
           </el-form-item>
           <el-form-item label="模型编码">
-            <el-select
-              v-model="configForm.modelCode"
-              filterable
-              allow-create
-              default-first-option
-              placeholder="选择或输入模型编码"
-              style="width: 100%"
-            >
-              <el-option label="deepseek-chat（V4 通用对话）" value="deepseek-chat" />
-              <el-option label="deepseek-reasoner（V4 推理）" value="deepseek-reasoner" />
-              <el-option label="deepseek-v4-pro（自定义）" value="deepseek-v4-pro" />
-              <el-option label="deepseek-v4-flash（自定义）" value="deepseek-v4-flash" />
-            </el-select>
-            <div class="field-tip">可自由输入你 API 支持的任何模型编码</div>
+            <div class="model-row">
+              <el-select
+                v-model="configForm.modelCode"
+                filterable
+                allow-create
+                default-first-option
+                placeholder="选择或输入模型编码"
+                style="flex: 1"
+              >
+                <el-option v-for="m in displayModels" :key="m" :label="m" :value="m" />
+              </el-select>
+              <el-button
+                class="refresh-models-btn"
+                :icon="Refresh"
+                :loading="loadingModels"
+                title="刷新模型列表"
+                @click="loadModels"
+              />
+            </div>
+            <div class="field-tip">
+              {{ modelOptions.length
+                ? `已从 API 读取 ${modelOptions.length} 个可用模型，点击右侧按钮刷新`
+                : '点击右侧按钮从 API 读取可用模型，或手动输入模型编码' }}
+            </div>
           </el-form-item>
         </el-card>
 
@@ -149,10 +159,10 @@
 <script setup lang="ts">
 import { ref, reactive, computed, onMounted } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { User, Lock, SwitchButton, Back, Check, Connection } from '@element-plus/icons-vue'
+import { User, Lock, SwitchButton, Back, Check, Connection, Refresh } from '@element-plus/icons-vue'
 import { useRouter } from 'vue-router'
 import { isAdminLoggedIn, setAdminToken, clearAdminToken } from '@/utils/adminAuth'
-import { adminLogin, adminLogout, getAiConfig, updateAiConfig, testAiConfig } from '@/api/admin'
+import { adminLogin, adminLogout, getAiConfig, updateAiConfig, testAiConfig, listAiModels } from '@/api/admin'
 import type { AiConfig } from '@/types/admin'
 
 const router = useRouter()
@@ -162,6 +172,31 @@ const configFormRef = ref()
 const loggingIn = ref(false)
 const saving = ref(false)
 const testing = ref(false)
+const loadingModels = ref(false)
+
+/** 动态可用模型列表（后端 GET /models 读取） */
+const modelOptions = ref<string[]>([])
+
+/** 后端获取失败时的兜底模型选项 */
+const FALLBACK_MODELS = ['deepseek-chat', 'deepseek-reasoner']
+
+/** 展示的模型选项：动态列表优先，为空时使用兜底 */
+const displayModels = computed(() =>
+  modelOptions.value.length ? modelOptions.value : FALLBACK_MODELS
+)
+
+/** 加载可用模型列表 */
+async function loadModels() {
+  loadingModels.value = true
+  try {
+    const res = await listAiModels()
+    modelOptions.value = res.data.data.models || []
+  } catch {
+    modelOptions.value = []
+  } finally {
+    loadingModels.value = false
+  }
+}
 
 const loginForm = reactive({ username: '', password: '' })
 const loginRules = {
@@ -213,6 +248,7 @@ async function handleLogin() {
     setAdminToken(res.data.data.token)
     ElMessage.success('登录成功')
     await loadConfig()
+    await loadModels()
   } catch (err: any) {
     // 错误提示由拦截器处理
     ElMessage.error(err?.message || '登录失败')
@@ -306,6 +342,7 @@ async function handleTest() {
 onMounted(() => {
   if (isAdminLoggedIn.value) {
     loadConfig()
+    loadModels()
   }
 })
 </script>
@@ -390,6 +427,17 @@ onMounted(() => {
     font-size: 12px;
     color: #909399;
     line-height: 1.5;
+  }
+
+  .model-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    width: 100%;
+
+    .refresh-models-btn {
+      flex-shrink: 0;
+    }
   }
 }
 

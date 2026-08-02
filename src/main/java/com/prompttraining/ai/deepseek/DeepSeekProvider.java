@@ -15,6 +15,7 @@ import org.springframework.web.reactive.function.client.WebClient;
 import reactor.core.publisher.Flux;
 
 import java.time.Duration;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -192,6 +193,39 @@ public class DeepSeekProvider implements AiProvider {
         } catch (Exception e) {
             log.error("DeepSeek 流式请求构建失败", e);
             callback.onError(e);
+        }
+    }
+
+    /**
+     * 获取当前账号可用的模型列表（V3：调用 OpenAI 兼容的 GET /models 接口）
+     *
+     * @return 模型编码列表；获取失败时返回空列表
+     */
+    public List<String> listModels() {
+        try {
+            String json = getWebClient().get()
+                    .uri("/models")
+                    .retrieve()
+                    .bodyToMono(String.class)
+                    .timeout(Duration.ofSeconds(10))
+                    .block();
+            JsonNode root = objectMapper.readTree(json);
+            JsonNode data = root.get("data");
+            if (data != null && data.isArray()) {
+                List<String> models = new ArrayList<>();
+                for (JsonNode node : data) {
+                    String id = node.path("id").asText("");
+                    if (!id.isEmpty()) {
+                        models.add(id);
+                    }
+                }
+                log.info("获取可用模型列表成功: {}", models);
+                return models;
+            }
+            return List.of();
+        } catch (Exception e) {
+            log.warn("获取模型列表失败: {}", e.getMessage());
+            return List.of();
         }
     }
 

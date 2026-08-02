@@ -31,3 +31,8 @@ export function updateAiConfig(data: AiConfigUpdateRequest) {
 export function testAiConfig(data: AiConfigUpdateRequest) {
   return adminRequest.post<Result<{ ok: boolean }>>('/admin/ai-config/test', data)
 }
+
+/** 获取可用模型列表 */
+export function listAiModels() {
+  return adminRequest.get<Result<{ models: string[] }>>('/admin/ai-config/models')
+}
