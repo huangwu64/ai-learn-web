@@ -60,7 +60,7 @@
         </div>
       </div>
 
-      <el-tabs v-model="activeTab" class="admin-tabs">
+      <el-tabs v-model="activeTab" class="admin-tabs" type="card">
         <el-tab-pane label="AI 配置" name="ai">
       <el-form
         ref="configFormRef"
@@ -363,7 +363,8 @@ onMounted(() => {
 <style scoped lang="scss">
 .admin-portal {
   min-height: 100vh;
-  background: linear-gradient(135deg, #2b3a67 0%, #1d2440 100%);
+  /* 浅蓝色背景（原深蓝色导致未选中选项看不清） */
+  background: linear-gradient(135deg, #e3f2fd 0%, #bbdefb 100%);
 }
 
 /* 登录视图 */
@@ -423,7 +424,7 @@ onMounted(() => {
   .config-title {
     font-size: 20px;
     font-weight: 600;
-    color: #fff;
+    color: #1d3557;
     margin: 0;
   }
 
@@ -463,7 +464,48 @@ onMounted(() => {
 .config-updated {
   margin-top: 16px;
   font-size: 12px;
-  color: rgba(255, 255, 255, 0.7);
+  color: rgba(29, 53, 87, 0.6);
   text-align: center;
+}
+
+/* 管理后台选项卡：浅蓝背景上所有选项可见，选中项带明显的蓝色框 */
+.admin-tabs {
+  :deep(.el-tabs__item) {
+    color: #1d3557;
+    font-weight: 500;
+    margin-right: 6px;
+    background: rgba(255, 255, 255, 0.75);
+    border: 1px solid rgba(29, 53, 87, 0.3);
+    border-bottom: none;
+    border-radius: 6px 6px 0 0;
+    transition: background-color 0.2s, color 0.2s;
+  }
+
+  :deep(.el-tabs__item:hover) {
+    color: #2563eb;
+    background: #fff;
+  }
+
+  /* 选中的选项：蓝色实底 + 白字，与浅蓝背景明显区分 */
+  :deep(.el-tabs__item.is-active) {
+    color: #fff;
+    background: #2563eb;
+    border-color: #2563eb;
+    font-weight: 600;
+    box-shadow: 0 2px 10px rgba(37, 99, 235, 0.35);
+  }
+
+  :deep(.el-tabs__item.is-active:hover) {
+    color: #fff;
+    background: #2563eb;
+  }
+
+  :deep(.el-tabs__nav-wrap::after) {
+    background-color: rgba(29, 53, 87, 0.15);
+  }
+
+  :deep(.el-tabs__active-bar) {
+    display: none;
+  }
 }
 </style>
