@@ -4,6 +4,43 @@
 
 ---
 
+## V2.1 (2026-08-02)
+
+### 🐛 Bug 修复
+
+- **修复 Token 过期后界面锁定、不自动跳转登录页**
+  - 根因：后端认证失败统一返回 `HTTP 200 + body code=401`（`SecurityConfig.writeJsonResponse` 与 `GlobalExceptionHandler` 均写 200 状态码），而前端 Axios 仅在真实 HTTP 401 时触发刷新/跳转，body 级 401 只弹错误提示
+  - 修复：
+    - `utils/auth.ts` 新增 `refreshAccessToken()`（全局共享刷新锁，并发 401 只发一次刷新请求）与 `redirectToLogin()`（统一清除登录态并跳转登录页）
+    - `api/request.ts` 响应拦截器同时识别 HTTP 401 与 body code=401，统一走「刷新 → 重放原请求 → 失败自动退出」流程；登录接口的 401（用户名/密码错误）仅提示、不触发退出
+    - `ChatPanel.vue` SSE 流式请求封装 `streamFetchWithAuth`，检测到认证过期自动刷新并重试一次，仍失败则清除登录态并跳转登录页
+
+### ✨ 新增功能
+
+- **退出登录按钮**
+  - 侧边栏底部：由纯图标改为「图标 + 文字」红色退出按钮
+  - 个人中心：新增「账号操作」卡片，含退出登录按钮
+- **UI 图片资源目录**
+  - 新增 `web/src/assets/ui/` 目录（含 README 说明与 `.gitkeep`），为后期用外部图片替换矢量图 UI 预留
+
+### 📁 变更文件
+
+| 文件 | 操作 |
+|------|------|
+| `web/src/utils/auth.ts` | 修改 |
+| `web/src/api/request.ts` | 修改 |
+| `web/src/components/chat/ChatPanel.vue` | 修改 |
+| `web/src/components/layout/Sidebar.vue` | 修改 |
+| `web/src/views/ProfileView.vue` | 修改 |
+| `web/src/assets/ui/README.md` | 新增 |
+| `web/src/assets/ui/.gitkeep` | 新增 |
+| `README.md` | 修改 |
+| `CHANGELOG.md` | 修改 |
+
+无后端变更，无数据库变更，无新增依赖。
+
+---
+
 ## V2.0 (2026-07-26)
 
 ### 🎯 版本目标

@@ -1,6 +1,6 @@
 import axios from 'axios'
 import { ElMessage } from 'element-plus'
-import { getAccessToken, getRefreshToken, setTokens, clearTokens } from '@/utils/auth'
+import { getAccessToken, refreshAccessToken, redirectToLogin } from '@/utils/auth'
 
 const request = axios.create({
   baseURL: '/api/v1',
@@ -9,27 +9,6 @@ const request = axios.create({
     'Content-Type': 'application/json',
   },
 })
-
-// 请求锁：并发 401 时仅发起一次刷新
-let isRefreshing = false
-let pendingRequests: Array<{
-  resolve: (token: string) => void
-  reject: (err: any) => void
-}> = []
-
-function addPendingRequest(resolve: (token: string) => void, reject: (err: any) => void) {
-  pendingRequests.push({ resolve, reject })
-}
-
-function resolvePendingRequests(token: string) {
-  pendingRequests.forEach(({ resolve }) => resolve(token))
-  pendingRequests = []
-}
-
-function rejectPendingRequests(err: any) {
-  pendingRequests.forEach(({ reject }) => reject(err))
-  pendingRequests = []
-}
 
 // 请求拦截器：自动携带 Token
 request.interceptors.request.use(
@@ -43,70 +22,65 @@ request.interceptors.request.use(
   (error) => Promise.reject(error)
 )
 
+/**
+ * 统一处理认证过期（HTTP 401 或业务码 body code=401）：
+ * 尝试刷新 Token 并重放原请求；刷新失败则清除登录态并跳转登录页。
+ */
+async function handleAuthExpired(originalRequest: any): Promise<any> {
+  // 已用新 Token 重放过仍失败 → 直接退出，避免死循环
+  if (originalRequest._retry) {
+    forceLogout()
+    return Promise.reject(new Error('登录已过期'))
+  }
+
+  originalRequest._retry = true
+  const newToken = await refreshAccessToken()
+
+  if (newToken) {
+    originalRequest.headers = originalRequest.headers || {}
+    originalRequest.headers.Authorization = `Bearer ${newToken}`
+    return request(originalRequest)
+  }
+
+  forceLogout()
+  return Promise.reject(new Error('登录已过期'))
+}
+
+/** 认证彻底失效：提示并跳转登录页 */
+function forceLogout(message = '登录已过期，请重新登录') {
+  ElMessage.error(message)
+  redirectToLogin()
+}
+
 // 响应拦截器：统一错误处理 + Token 自动刷新
 request.interceptors.response.use(
   (response) => {
     const data = response.data
+    if (!data) return response
+
+    // 后端以 HTTP 200 + body code=401 表达认证过期（见 SecurityConfig / GlobalExceptionHandler）
+    if (data.code === 401) {
+      const url = response.config?.url || ''
+      // 登录接口的 401 是"用户名/密码错误"，仅提示、不触发退出流程
+      if (url.includes('/auth/login')) {
+        ElMessage.error(data.message || '登录失败')
+        return Promise.reject(new Error(data.message || '登录失败'))
+      }
+      return handleAuthExpired(response.config)
+    }
+
     if (data.code !== 200) {
       ElMessage.error(data.message || '请求失败')
       return Promise.reject(new Error(data.message || '请求失败'))
     }
     return response
   },
-  async (error) => {
+  (error) => {
     const originalRequest = error.config
 
-    // Token 过期 (401)，尝试自动刷新
-    if (error.response?.status === 401 && !originalRequest._retry) {
-      const refreshTokenValue = getRefreshToken()
-      if (!refreshTokenValue) {
-        // 没有 Refresh Token，直接跳转登录页
-        clearTokens()
-        if (window.location.pathname !== '/login') {
-          window.location.href = '/login'
-        }
-        return Promise.reject(error)
-      }
-
-      if (isRefreshing) {
-        // 已有刷新请求在进行中，将当前请求加入等待队列
-        return new Promise((resolve, reject) => {
-          addPendingRequest(
-            (token: string) => {
-              originalRequest.headers.Authorization = `Bearer ${token}`
-              originalRequest._retry = true
-              resolve(request(originalRequest))
-            },
-            reject
-          )
-        })
-      }
-
-      originalRequest._retry = true
-      isRefreshing = true
-
-      try {
-        const res = await axios.post('/api/v1/auth/refresh', { refreshToken: refreshTokenValue })
-        const data = res.data.data
-        if (data && data.accessToken) {
-          setTokens(data.accessToken, data.refreshToken)
-          // 通知所有等待的请求
-          resolvePendingRequests(data.accessToken)
-          // 重放原请求
-          originalRequest.headers.Authorization = `Bearer ${data.accessToken}`
-          return request(originalRequest)
-        }
-      } catch (refreshError) {
-        rejectPendingRequests(refreshError)
-        clearTokens()
-        ElMessage.error('登录已过期，请重新登录')
-        if (window.location.pathname !== '/login') {
-          window.location.href = '/login'
-        }
-        return Promise.reject(refreshError)
-      } finally {
-        isRefreshing = false
-      }
+    // 真实 HTTP 401（兼容后端改为标准状态码的情况）
+    if (error.response?.status === 401 && originalRequest) {
+      return handleAuthExpired(originalRequest)
     }
 
     // 其他 HTTP 错误

@@ -123,7 +123,15 @@
         <el-avatar :size="28" :icon="User" />
         <span class="user-name">{{ userStore.user?.nickname || userStore.user?.username || '未登录' }}</span>
       </div>
-      <el-button text :icon="SwitchButton" size="small" @click="handleLogout" title="退出登录" />
+      <el-button
+        class="logout-btn"
+        text
+        type="danger"
+        :icon="SwitchButton"
+        @click="handleLogout"
+      >
+        退出登录
+      </el-button>
     </div>
   </div>
 </template>
@@ -430,6 +438,11 @@ async function handleLogout() {
     &:hover {
       opacity: 0.8;
     }
+  }
+
+  .logout-btn {
+    flex-shrink: 0;
+    margin-left: 8px;
   }
 }
 </style>

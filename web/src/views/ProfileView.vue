@@ -69,6 +69,19 @@
           </el-form-item>
         </el-form>
       </el-card>
+
+      <!-- 账号操作 -->
+      <el-card class="profile-card account-card">
+        <template #header>
+          <span>账号操作</span>
+        </template>
+        <div class="account-actions">
+          <el-button type="danger" plain :icon="SwitchButton" @click="handleLogout">
+            退出登录
+          </el-button>
+          <span class="logout-tip">退出后需重新登录才能继续使用</span>
+        </div>
+      </el-card>
     </div>
 
     <!-- 编辑昵称/头像对话框 -->
@@ -91,12 +104,11 @@
 
 <script setup lang="ts">
 import { ref, reactive, onMounted, watch } from 'vue'
-import { ElMessage } from 'element-plus'
-import { User } from '@element-plus/icons-vue'
+import { ElMessage, ElMessageBox } from 'element-plus'
+import { User, SwitchButton } from '@element-plus/icons-vue'
 import { useUserStore } from '@/stores/user'
 import { useRouter } from 'vue-router'
 import * as authApi from '@/api/auth'
-import { clearTokens } from '@/utils/auth'
 
 const userStore = useUserStore()
 const router = useRouter()
@@ -216,6 +228,26 @@ function resetPasswordForm() {
   passwordForm.confirmPassword = ''
   passwordFormRef.value?.resetFields()
 }
+
+/** 退出登录 */
+async function handleLogout() {
+  try {
+    await ElMessageBox.confirm('确定要退出登录吗？', '退出登录', {
+      confirmButtonText: '确定',
+      cancelButtonText: '取消',
+      type: 'warning',
+    })
+  } catch {
+    return
+  }
+  try {
+    await authApi.logout()
+  } catch {
+    // 接口失败也照常清理本地状态
+  }
+  userStore.clearState()
+  router.push('/login')
+}
 </script>
 
 <style scoped lang="scss">
@@ -245,6 +277,19 @@ function resetPasswordForm() {
     display: flex;
     align-items: center;
     justify-content: space-between;
+  }
+}
+
+.account-card {
+  .account-actions {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+
+    .logout-tip {
+      font-size: 12px;
+      color: #909399;
+    }
   }
 }
 

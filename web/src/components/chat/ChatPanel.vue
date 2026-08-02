@@ -68,7 +68,7 @@ import { useChatStore } from '@/stores/chat'
 import { useSessionStore } from '@/stores/session'
 import * as messageApi from '@/api/message'
 import * as sessionApi from '@/api/session'
-import { getAccessToken } from '@/utils/auth'
+import { getAccessToken, refreshAccessToken, redirectToLogin } from '@/utils/auth'
 import type { SSEChunk } from '@/types/message'
 import MessageBubble from './MessageBubble.vue'
 import MessageInput from './MessageInput.vue'
@@ -137,6 +137,79 @@ async function loadMore() {
 /** 当前活跃的 AbortController（用于停止生成） */
 let currentAbortController: AbortController | null = null
 
+/**
+ * 携带 Token 的流式请求封装：
+ * - 自动附带 Authorization 请求头
+ * - 检测到认证过期（HTTP 401 或 HTTP 200 + JSON body code=401）时，
+ *   刷新 Token 并用新 Token 重试一次；仍失败则清除登录态并跳转登录页，返回 null。
+ * - 其他非 401 的 JSON 错误直接抛出，由调用方走同步请求降级。
+ */
+async function streamFetchWithAuth(
+  url: string,
+  body: unknown,
+  signal: AbortSignal
+): Promise<Response | null> {
+  const token = getAccessToken()
+  const baseHeaders: Record<string, string> = {
+    'Content-Type': 'application/json',
+    Authorization: `Bearer ${token}`,
+  }
+  const init: RequestInit = {
+    method: 'POST',
+    headers: baseHeaders,
+    body: JSON.stringify(body),
+    signal,
+  }
+
+  let response = await fetch(url, init)
+
+  // 认证过期判断：HTTP 401，或 HTTP 200 + JSON body code=401（后端统一返回 200）
+  const isAuthError =
+    response.status === 401 ||
+    (response.headers.get('content-type') || '').includes('application/json')
+
+  if (!isAuthError) return response
+
+  let bodyJson: any = null
+  try {
+    bodyJson = await response.clone().json()
+  } catch {
+    bodyJson = null
+  }
+  const authExpired = response.status === 401 || bodyJson?.code === 401
+
+  if (!authExpired) {
+    // 非 401 的 JSON 错误（如服务器 500）→ 抛出让调用方降级
+    throw new Error(bodyJson?.message || '请求失败')
+  }
+
+  // 认证过期：刷新 Token 并重试一次
+  const newToken = await refreshAccessToken()
+  if (!newToken) {
+    chatStore.stopStreaming()
+    ElMessage.error('登录已过期，请重新登录')
+    redirectToLogin()
+    return null
+  }
+
+  response = await fetch(url, {
+    ...init,
+    headers: { ...baseHeaders, Authorization: `Bearer ${newToken}` },
+  })
+
+  // 重试后仍为认证错误 → 直接退出登录
+  const retryAuthError =
+    response.status === 401 ||
+    (response.headers.get('content-type') || '').includes('application/json')
+  if (retryAuthError) {
+    chatStore.stopStreaming()
+    ElMessage.error('登录已过期，请重新登录')
+    redirectToLogin()
+    return null
+  }
+  return response
+}
+
 /** 发送消息 */
 async function handleSend(content: string) {
   if (!chatStore.activeSessionId || chatStore.isStreaming) return
@@ -159,16 +232,12 @@ async function handleSend(content: string) {
   currentAbortController = new AbortController()
 
   try {
-    const token = getAccessToken()
-    const response = await fetch(`/api/v1/sessions/${sessionId}/messages/stream`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${token}`,
-      },
-      body: JSON.stringify({ content }),
-      signal: currentAbortController.signal,
-    })
+    const response = await streamFetchWithAuth(
+      `/api/v1/sessions/${sessionId}/messages/stream`,
+      { content },
+      currentAbortController.signal
+    )
+    if (!response) return // 已跳转登录页
 
     if (!response.ok) throw new Error('请求失败')
 
@@ -286,15 +355,12 @@ async function handleRegenerate(messageId: number) {
   currentAbortController = new AbortController()
 
   try {
-    const token = getAccessToken()
-    const response = await fetch(`/api/v1/sessions/${sessionId}/messages/${messageId}/regenerate/stream`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${token}`,
-      },
-      signal: currentAbortController.signal,
-    })
+    const response = await streamFetchWithAuth(
+      `/api/v1/sessions/${sessionId}/messages/${messageId}/regenerate/stream`,
+      {},
+      currentAbortController.signal
+    )
+    if (!response) return // 已跳转登录页
 
     if (!response.ok) throw new Error('请求失败')
 
