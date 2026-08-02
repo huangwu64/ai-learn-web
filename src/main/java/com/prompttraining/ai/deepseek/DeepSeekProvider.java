@@ -136,7 +136,7 @@ public class DeepSeekProvider implements AiProvider {
                     .bodyToFlux(String.class)
                     .timeout(Duration.ofSeconds(30))
                     .doOnNext(chunk -> {
-                        log.debug("DeepSeek 原始响应块 (长度={}): {}", chunk.length(), chunk.substring(0, Math.min(500, chunk.length())));
+                        log.debug("DeepSeek 原始响应块 (长度={})", chunk.length());
                         // DeepSeek 流式响应通过 WebClient bodyToFlux 后，
                         // 每行是纯 JSON 或 "[DONE]"，不带 "data:" 前缀
                         for (String line : chunk.split("\n")) {

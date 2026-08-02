@@ -69,11 +69,10 @@
         </encoder>
     </appender>
 
-    <!-- ====== 项目日志级别 ====== -->
-    <logger name="com.prompttraining" level="DEBUG"/>
-
-    <!-- AI Provider 调用细节 -->
-    <logger name="com.prompttraining.ai" level="DEBUG"/>
+    <!-- ====== 项目日志级别 ======
+         INFO：省略对话时重复的调试日志（SSE 分块、业务 DEBUG 等）
+         SQL 日志统一写入 sql 文件，控制台不输出 -->
+    <logger name="com.prompttraining" level="INFO"/>
 
     <!-- MyBatis SQL 日志（写入 sql 文件，控制台不输出） -->
     <logger name="com.prompttraining.module.message.MessageMapper" level="DEBUG" additivity="false">
@@ -82,11 +81,23 @@
     <logger name="com.prompttraining.module.session.SessionMapper" level="DEBUG" additivity="false">
         <appender-ref ref="FILE_SQL"/>
     </logger>
+    <logger name="com.prompttraining.module.user.UserMapper" level="DEBUG" additivity="false">
+        <appender-ref ref="FILE_SQL"/>
+    </logger>
+    <logger name="com.prompttraining.security.RefreshTokenMapper" level="DEBUG" additivity="false">
+        <appender-ref ref="FILE_SQL"/>
+    </logger>
+    <logger name="com.prompttraining.ai.config.AiConfigMapper" level="DEBUG" additivity="false">
+        <appender-ref ref="FILE_SQL"/>
+    </logger>
+    <logger name="com.prompttraining.module.review.ProfileChangeRequestMapper" level="DEBUG" additivity="false">
+        <appender-ref ref="FILE_SQL"/>
+    </logger>
 
     <!-- 框架日志级别 -->
     <logger name="org.springframework" level="INFO"/>
-    <!-- Spring MVC 请求分发日志（DEBUG 级别可看到每个请求的 URL 和方法） -->
-    <logger name="org.springframework.web.servlet.DispatcherServlet" level="DEBUG"/>
+    <!-- Spring MVC 请求分发日志（省略每个请求的 DEBUG 行） -->
+    <logger name="org.springframework.web.servlet.DispatcherServlet" level="INFO"/>
     <logger name="org.mybatis" level="INFO"/>
     <logger name="com.baomidou.mybatisplus" level="INFO"/>
 

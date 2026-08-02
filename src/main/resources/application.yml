@@ -6,6 +6,10 @@ spring:
     active: dev
   application:
     name: prompt-training-server
+  security:
+    filter:
+      # 只对 REQUEST/ERROR 派发做鉴权，跳过 ASYNC（避免 SSE 流式完成时的异步派发重复鉴权报错）
+      dispatcher-types: request, error
 
 # MyBatis-Plus 配置
 mybatis-plus:
